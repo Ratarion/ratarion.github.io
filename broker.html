@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Мой Портфель | Сбер Инвестиции</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>Портфель</h1>
+            <div class="subtitle">Синхронизация с Московской Биржей</div>
+        </div>
+        <div class="time-block" aria-hidden="false">
+            <div class="current-time" id="clock" role="status" aria-live="polite">00:00:00</div>
+            <div class="current-date" id="date">...</div>
+        </div>
+    </header>
+
+    <div class="chart-container" aria-hidden="false">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+            <div id="tradingview_chart" style="height:100%;width:100%"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/tv.js" crossorigin="anonymous"></script>
+            <script type="text/javascript">
+            /* tradingview widget — оставил как было (может блокироваться внешними ограничениями) */
+            new TradingView.widget({
+                "width": "100%",
+                "height": 350,
+                "symbol": "MOEX:IMOEX",
+                "interval": "1",
+                "timezone": "Europe/Moscow",
+                "theme": "dark",
+                "style": "1",
+                "locale": "ru",
+                "toolbar_bg": "#1c1c1e",
+                "enable_publishing": false,
+                "withdateranges": true,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": true,
+                "details": true,
+                "hotlist": true,
+                "calendar": true,
+                "studies": ["Volume@tv-basicstudies"],
+                "container_id": "tradingview_chart",
+                "autosize": true
+            });
+            </script>
+        </div>
+    </div>
+
+    <div id="sectorsContainer" class="sectors-container" aria-live="polite"></div>
+
+    <div class="stats-grid" role="region" aria-label="Статистика портфеля">
+        <div class="stat-card">
+            <div class="stat-label">Стоимость портфеля</div>
+            <div class="stat-value" id="totalValue">0 <span class="stat-currency">₽</span></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Всего позиций</div>
+            <div class="stat-value" id="countValue">0</div>
+        </div>
+    </div>
+
+    <div class="controls" role="toolbar" aria-label="Управление портфелем">
+        <button class="btn btn-add" onclick="toggleForm()" aria-expanded="false" aria-controls="assetForm">
+            <span aria-hidden="true">+</span> Добавить актив
+        </button>
+        <button class="btn btn-refresh" onclick="updatePrices()" id="refreshBtn" aria-label="Обновить цены">
+            <span id="refreshIcon" aria-hidden="true">↻</span>
+        </button>
+        <div class="control-group">
+            <label for="groupBy">Группировка:</label>
+            <select id="groupBy" aria-label="Выбор группировки">
+                <option value="sector">По отраслям</option>
+                <option value="type">По типам</option>
+                <option value="none">Без групп</option>
+            </select>
+        </div>
+    </div>
+
+    <form id="assetForm" class="asset-form" aria-hidden="true" aria-labelledby="formTitle">
+        <div class="full-width" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 id="formTitle" style="margin:0; font-size:16px;">Новая позиция</h3>
+            <button type="button" class="btn-icon" onclick="toggleForm()" aria-label="Закрыть форму">✕</button>
+        </div>
+
+        <div>
+            <label for="inpTicker">Тикер (например, SBER)</label>
+            <input type="text" id="inpTicker" name="ticker" placeholder="Тикер" required style="text-transform: uppercase;">
+        </div>
+        <div>
+            <label for="inpName">Название</label>
+            <input type="text" id="inpName" name="name" placeholder="Название">
+        </div>
+        <div>
+            <label for="inpQty">Количество</label>
+            <input type="number" id="inpQty" name="quantity" placeholder="0" step="0.0001" required>
+        </div>
+        <div>
+            <label for="inpType">Тип актива</label>
+            <select id="inpType" name="type" aria-label="Тип актива">
+                <option value="share">Акция / Фонд</option>
+                <option value="bond">Облигация</option>
+                <option value="cash">Деньги</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-add full-width">Сохранить</button>
+    </form>
+
+    <div id="assetList" class="asset-list" role="list" aria-label="Список активов"></div>
+</div>
+
+<div class="loading" id="loading" role="status" aria-live="assertive" aria-hidden="true">
+    <div class="loading-text">Обновление цен...</div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
