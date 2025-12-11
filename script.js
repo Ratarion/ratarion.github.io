@@ -4,10 +4,10 @@ const fullPortfolioData = [
     { name: "Татнефть", ticker: "TATN", quantity: 5, type: "share" },
     { name: "Хэдхантер МКПАО", ticker: "HEAD", quantity: 3, type: "share" },
     { name: "Самолёт ГК", ticker: "SMLT", quantity: 2, type: "share" },
-    { name: "Сберегательный", ticker: "SBMM", quantity: 88, type: "share" },
-    { name: "Топ Российских акций", ticker: "SBMX", quantity: 1, type: "share" },
-    { name: "Ежемесячный доход", ticker: "FLOW", quantity: 1, type: "share" },
-    { name: "Доступное золото", ticker: "SBGD", quantity: 2, type: "share" },
+    { name: "Сберегательный", ticker: "SBMM", quantity: 88, type: "fund" },
+    { name: "Топ Российских акций", ticker: "SBMX", quantity: 1, type: "fund" },
+    { name: "Ежемесячный доход", ticker: "FLOW", quantity: 1, type: "fund" },
+    { name: "Доступное золото", ticker: "SBGD", quantity: 2, type: "fund" },
     { name: "АЛРОСА", ticker: "ALRS", quantity: 20, type: "share" },
     { name: "БалтЛиз П19", ticker: "RU000A10CC32", quantity: 1, type: "bond" },
     { name: "ОФЗ 26226", ticker: "SU26226RMFS9", quantity: 1, type: "bond" },
@@ -25,7 +25,8 @@ const ui = {
     date: document.getElementById('date'),
     refreshIcon: document.getElementById('refreshIcon'),
     sectorsContainer: document.getElementById('sectorsContainer'),
-    loading: document.getElementById('loading')
+    loading: document.getElementById('loading'),
+    groupBySelect: document.getElementById('groupBy')
 };
 
 const originalFormPosition = {
@@ -34,6 +35,13 @@ const originalFormPosition = {
 };
 
 let editIndex = -1;
+let groupBy = localStorage.getItem('groupBy') || 'sector';
+ui.groupBySelect.value = groupBy;
+ui.groupBySelect.addEventListener('change', (e) => {
+    groupBy = e.target.value;
+    localStorage.setItem('groupBy', groupBy);
+    render();
+});
 
 /* ================= ФУНКЦИИ ВРЕМЕНИ ================= */
 function updateClock() {
@@ -48,16 +56,26 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-/* ================= СЕКТОРА ================= */
-function updateSectorsDisplay(sectors, totalSum) {
+/* ================= СВОРАЧИВАНИЕ ================= */
+function toggleGroup(header) {
+    header.classList.toggle('collapsed');
+    const content = header.nextElementSibling;
+    content.style.display = header.classList.contains('collapsed') ? 'none' : 'block';
+    const icon = header.querySelector('.toggle-icon');
+    icon.textContent = header.classList.contains('collapsed') ? '▶' : '▼';
+}
+
+/* ================= СУММАРЫ ================= */
+function updateSummaries(summaries, totalSum) {
     if (!totalSum || totalSum <= 0) {
         ui.sectorsContainer.innerHTML = '';
         return;
     }
 
     ui.sectorsContainer.innerHTML = '';
+    ui.sectorsContainer.style.gridTemplateColumns = `repeat(auto-fill, minmax(150px, 1fr))`;
 
-    Object.entries(sectors).forEach(([name, value]) => {
+    Object.entries(summaries).forEach(([name, value]) => {
         if (value <= 0) return;
         const percent = ((value / totalSum) * 100).toFixed(1);
         const card = document.createElement('div');
@@ -73,39 +91,59 @@ function updateSectorsDisplay(sectors, totalSum) {
 
 /* ================= РЕНДЕР ================= */
 function render() {
-    const sectors = {
-        "Нефть и газ": 0,
-        "IT и телеком": 0,
-        "Финансы": 0,
-        "Строительство": 0,
-        "Государство": 0,
-        "Металлургия": 0,
-        "Валюта": 0
+    const sectorMap = {
+        "LKOH": "Нефть и газ",
+        "TATN": "Нефть и газ",
+        "HEAD": "IT и телеком",
+        "SMLT": "Строительство",
+        "ALRS": "Металлургия"
     };
+
+    const typeNames = {
+        share: "Акции",
+        fund: "Фонды",
+        bond: "Облигации",
+        cash: "Наличные"
+    };
+
+    let getGroupKey;
+    let getDisplayName = (key) => groupBy === 'type' ? typeNames[key] : key;
+    let summaries = {};
+
+    if (groupBy === 'sector' || groupBy === 'none') {
+        getGroupKey = (asset) => {
+            if (asset.type === "cash") return "Валюта";
+            if (asset.type === "bond") return "Государство";
+            if (asset.ticker && asset.ticker.startsWith('SB')) return "Финансы";
+            return sectorMap[asset.ticker] || "Другие";
+        };
+        summaries = {
+            "Нефть и газ": 0,
+            "IT и телеком": 0,
+            "Финансы": 0,
+            "Строительство": 0,
+            "Государство": 0,
+            "Металлургия": 0,
+            "Валюта": 0,
+            "Другие": 0
+        };
+    } else if (groupBy === 'type') {
+        getGroupKey = (asset) => asset.type;
+        summaries = {
+            "Акции": 0,
+            "Фонды": 0,
+            "Облигации": 0,
+            "Наличные": 0
+        };
+    }
 
     ui.list.innerHTML = '';
     let totalSum = 0;
+    let groupedAssets = {};
 
     portfolio.forEach((asset, index) => {
         const price = asset.currentPrice || 0;
         let val = price * asset.quantity;
-
-        if (asset.ticker === "LKOH" || asset.ticker === "TATN") {
-            sectors["Нефть и газ"] += val;
-        } else if (asset.ticker === "HEAD") {
-            sectors["IT и телеком"] += val;
-        } else if (asset.ticker && asset.ticker.includes("SB")) {
-            sectors["Финансы"] += val;
-        } else if (asset.ticker === "SMLT") {
-            sectors["Строительство"] += val;
-        } else if (asset.type === "bond") {
-            sectors["Государство"] += val;
-        } else if (asset.ticker === "ALRS") {
-            sectors["Металлургия"] += val;
-        } else if (asset.type === "cash") {
-            sectors["Валюта"] += val;
-        }
-
         let displayPrice = price;
         let calculatedTotal = 0;
 
@@ -120,44 +158,113 @@ function render() {
 
         totalSum += calculatedTotal;
 
-        let changeHTML = '';
-        if (asset.change !== undefined && asset.change !== 0) {
-            const changeClass = asset.change > 0 ? 'change-up' : 'change-down';
-            const changeSign = asset.change > 0 ? '+' : '';
-            changeHTML = `
-                <div class="price-change ${changeClass}">
-                    ${changeSign}${asset.changePercent || '0.00'}%
-                </div>
-            `;
-        }
+        let key = getGroupKey(asset);
+        let summaryKey = groupBy === 'type' ? getDisplayName(key) : key;
+        summaries[summaryKey] = (summaries[summaryKey] || 0) + calculatedTotal;
 
-        const el = document.createElement('div');
-        el.className = 'asset-row';
-        el.setAttribute('role', 'listitem');
-        el.innerHTML = `
-            <div class="asset-left">
-                <div class="asset-name">${asset.name}</div>
-                <div class="asset-meta">
-                    <span class="ticker-badge">${asset.ticker}</span>
-                    <span class="qty-badge">${asset.quantity} шт</span>
-                </div>
-            </div>
-            <div class="asset-right">
-                <div class="price-info">
-                    <div class="total-price">${formatMoney(calculatedTotal)}</div>
-                    <div class="unit-price">${formatMoney(displayPrice)} / шт</div>
-                </div>
-                ${changeHTML}
-                <div class="row-actions">
-                    <button class="btn-icon" onclick="editAsset(${index})" aria-label="Редактировать ${asset.ticker}">✎</button>
-                    <button class="btn-icon del" onclick="deleteAsset(${index})" aria-label="Удалить ${asset.ticker}">✕</button>
-                </div>
-            </div>
-        `;
-        ui.list.appendChild(el);
+        if (!groupedAssets[key]) groupedAssets[key] = [];
+        groupedAssets[key].push({ ...asset, calculatedTotal, displayPrice, index });
     });
 
-    updateSectorsDisplay(sectors, totalSum);
+    if (groupBy === 'none') {
+        // Flat list
+        portfolio.forEach((asset, index) => {
+            const { calculatedTotal, displayPrice } = groupedAssets[getGroupKey(asset)].find(a => a.index === index);
+            let changeHTML = '';
+            if (asset.change !== undefined && asset.change !== 0) {
+                const changeClass = asset.change > 0 ? 'change-up' : 'change-down';
+                const changeSign = asset.change > 0 ? '+' : '';
+                changeHTML = `
+                    <div class="price-change ${changeClass}">
+                        ${changeSign}${asset.changePercent || '0.00'}%
+                    </div>
+                `;
+            }
+
+            const el = document.createElement('div');
+            el.className = 'asset-row';
+            el.setAttribute('role', 'listitem');
+            el.innerHTML = `
+                <div class="asset-left">
+                    <div class="asset-name">${asset.name}</div>
+                    <div class="asset-meta">
+                        <span class="ticker-badge">${asset.ticker}</span>
+                        <span class="qty-badge">${asset.quantity} шт</span>
+                    </div>
+                </div>
+                <div class="asset-right">
+                    <div class="price-info">
+                        <div class="total-price">${formatMoney(calculatedTotal)}</div>
+                        <div class="unit-price">${formatMoney(displayPrice)} / шт</div>
+                    </div>
+                    ${changeHTML}
+                    <div class="row-actions">
+                        <button class="btn-icon" onclick="editAsset(${index})" aria-label="Редактировать ${asset.ticker}">✎</button>
+                        <button class="btn-icon del" onclick="deleteAsset(${index})" aria-label="Удалить ${asset.ticker}">✕</button>
+                    </div>
+                </div>
+            `;
+            ui.list.appendChild(el);
+        });
+    } else {
+        // Grouped list
+        Object.entries(groupedAssets).forEach(([key, assets]) => {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'asset-group';
+
+            const header = document.createElement('h3');
+            header.className = 'group-header';
+            header.innerHTML = `${getDisplayName(key)} <span class="toggle-icon">▼</span>`;
+            header.onclick = () => toggleGroup(header);
+            groupDiv.appendChild(header);
+
+            const content = document.createElement('div');
+            content.className = 'group-content';
+
+            assets.forEach((asset) => {
+                let changeHTML = '';
+                if (asset.change !== undefined && asset.change !== 0) {
+                    const changeClass = asset.change > 0 ? 'change-up' : 'change-down';
+                    const changeSign = asset.change > 0 ? '+' : '';
+                    changeHTML = `
+                        <div class="price-change ${changeClass}">
+                            ${changeSign}${asset.changePercent || '0.00'}%
+                        </div>
+                    `;
+                }
+
+                const el = document.createElement('div');
+                el.className = 'asset-row';
+                el.setAttribute('role', 'listitem');
+                el.innerHTML = `
+                    <div class="asset-left">
+                        <div class="asset-name">${asset.name}</div>
+                        <div class="asset-meta">
+                            <span class="ticker-badge">${asset.ticker}</span>
+                            <span class="qty-badge">${asset.quantity} шт</span>
+                        </div>
+                    </div>
+                    <div class="asset-right">
+                        <div class="price-info">
+                            <div class="total-price">${formatMoney(asset.calculatedTotal)}</div>
+                            <div class="unit-price">${formatMoney(asset.displayPrice)} / шт</div>
+                        </div>
+                        ${changeHTML}
+                        <div class="row-actions">
+                            <button class="btn-icon" onclick="editAsset(${asset.index})" aria-label="Редактировать ${asset.ticker}">✎</button>
+                            <button class="btn-icon del" onclick="deleteAsset(${asset.index})" aria-label="Удалить ${asset.ticker}">✕</button>
+                        </div>
+                    </div>
+                `;
+                content.appendChild(el);
+            });
+
+            groupDiv.appendChild(content);
+            ui.list.appendChild(groupDiv);
+        });
+    }
+
+    updateSummaries(summaries, totalSum);
 
     ui.total.innerHTML = formatMoney(totalSum).replace('₽', '') + ' <span class="stat-currency">₽</span>';
     ui.count.innerText = portfolio.length;
@@ -195,8 +302,8 @@ window.editAsset = function(index) {
     editIndex = index;
 
     // Перемещаем форму под актив
-    const assetEl = ui.list.children[index];
-    assetEl.after(ui.form);
+    const assetEl = ui.list.querySelectorAll('.asset-row')[index] || ui.list.children[0]; // fallback
+    if (assetEl) assetEl.after(ui.form);
 
     ui.form.classList.add('visible');
     ui.form.setAttribute('aria-hidden', 'false');
@@ -253,7 +360,7 @@ document.getElementById('assetForm').addEventListener('submit', (e) => {
     }
 });
 
-/* ================= МОEX API — УЛУЧШЕНИЯ ================= */
+/* ================= MOEX API — УЛУЧШЕНИЯ ================= */
 
 /**
  * Разбивает массив на чанки фиксированного размера
