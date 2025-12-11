@@ -3,26 +3,65 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-XSS-Protection" content="0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://s3.tradingview.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://iss.moex.com; frame-src 'self' https://tradingview.com; frame-ancestors 'self';" />
     <title>Мой Портфель | Сбер Инвестиции</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .tradingview-widget-container {
+            height: 100%;
+            width: 100%;
+        }
+        #tradingview_chart {
+            height: 100%;
+            width: 100%;
+        }
+        #chart-fallback {
+            display: none;
+            height: 100%;
+            width: 100%;
+            background: var(--bg-card);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-title {
+            margin: 0;
+            font-size: 16px;
+        }
+        .uppercase {
+            text-transform: uppercase;
+        }
+    </style>
 </head>
 <body>
 
 <div class="container">
-    <header>
+    <header onclick="resetChartToDefault()">
         <div>
             <h1>Портфель</h1>
             <div class="subtitle">Синхронизация с Московской Биржей</div>
         </div>
-        <div class="time-block" aria-hidden="false">
+        <div class="time-block">
             <div class="current-time" id="clock" role="status" aria-live="polite">00:00:00</div>
             <div class="current-date" id="date">...</div>
         </div>
     </header>
 
-    <div class="chart-container" aria-hidden="false">
-        <div class="tradingview-widget-container" style="height:100%;width:100%">
-            <div id="tradingview_chart" style="height:100%;width:100%"></div>
+    <div class="chart-container">
+        <div class="tradingview-widget-container">
+            <div id="tradingview_chart"></div>
+            <div id="chart-fallback">
+                График недоступен. Проверьте соединение или попробуйте позже.
+            </div>
             <script type="text/javascript" src="https://s3.tradingview.com/tv.js" crossorigin="anonymous"></script>
             <script type="text/javascript">
             /* tradingview widget — оставил как было (может блокироваться внешними ограничениями) */
@@ -82,33 +121,33 @@
     </div>
 
     <form id="assetForm" class="asset-form" aria-hidden="true" aria-labelledby="formTitle">
-        <div class="full-width" style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 id="formTitle" style="margin:0; font-size:16px;">Новая позиция</h3>
-            <button type="button" class="btn-icon" onclick="toggleForm()" aria-label="Закрыть форму">✕</button>
+        <div class="full-width form-header">
+            <h3 id="formTitle" class="form-title">Новая позиция</h3>
+            <button type="button" class="btn-icon" onclick="toggleForm()" aria-label="Закрыть форму" disabled>✕</button>
         </div>
 
         <div>
             <label for="inpTicker">Тикер (например, SBER)</label>
-            <input type="text" id="inpTicker" name="ticker" placeholder="Тикер" required style="text-transform: uppercase;">
+            <input type="text" id="inpTicker" name="ticker" placeholder="Тикер" required class="uppercase" autocomplete="off" disabled>
         </div>
         <div>
             <label for="inpName">Название</label>
-            <input type="text" id="inpName" name="name" placeholder="Название">
+            <input type="text" id="inpName" name="name" placeholder="Название" autocomplete="off" disabled>
         </div>
         <div>
             <label for="inpQty">Количество</label>
-            <input type="number" id="inpQty" name="quantity" placeholder="0" step="0.0001" required>
+            <input type="number" id="inpQty" name="quantity" placeholder="0" step="0.0001" required autocomplete="off" disabled>
         </div>
         <div>
             <label for="inpType">Тип актива</label>
-            <select id="inpType" name="type" aria-label="Тип актива">
+            <select id="inpType" name="type" aria-label="Тип актива" disabled>
                 <option value="share">Акция</option>
                 <option value="fund">Фонд</option>
                 <option value="bond">Облигация</option>
                 <option value="cash">Деньги</option>
             </select>
         </div>
-        <button type="submit" class="btn btn-add full-width">Сохранить</button>
+        <button type="submit" class="btn btn-add full-width" disabled>Сохранить</button>
     </form>
 
     <div id="assetList" class="asset-list" role="list" aria-label="Список активов"></div>

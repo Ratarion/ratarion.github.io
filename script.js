@@ -26,7 +26,8 @@ const ui = {
     refreshIcon: document.getElementById('refreshIcon'),
     sectorsContainer: document.getElementById('sectorsContainer'),
     loading: document.getElementById('loading'),
-    groupBySelect: document.getElementById('groupBy')
+    groupBySelect: document.getElementById('groupBy'),
+    chartFallback: document.getElementById('chart-fallback') // Новый: fallback для графика
 };
 
 const originalFormPosition = {
@@ -42,6 +43,66 @@ ui.groupBySelect.addEventListener('change', (e) => {
     localStorage.setItem('groupBy', groupBy);
     render();
 });
+
+let tvWidget = null; // Ссылка на TradingView widget
+
+/* ================= ИНИЦИАЛИЗАЦИЯ TRADINGVIEW ================= */
+function initTradingView() {
+    try {
+        tvWidget = new TradingView.widget({
+            "width": "100%",
+            "height": 350,
+            "symbol": "MOEX:IMOEX", // Дефолт: индекс Мосбиржи
+            "interval": "1",
+            "timezone": "Europe/Moscow",
+            "theme": "dark",
+            "style": "1",
+            "locale": "ru",
+            "toolbar_bg": "#1c1c1e",
+            "enable_publishing": false,
+            "withdateranges": true,
+            "hide_side_toolbar": false,
+            "allow_symbol_change": true,
+            "details": true,
+            "hotlist": true,
+            "calendar": true,
+            "studies": ["Volume@tv-basicstudies"],
+            "container_id": "tradingview_chart",
+            "autosize": true
+        });
+
+        // Обработка ошибок загрузки
+        tvWidget.onChartReady(() => {
+            console.log('График загружен');
+            ui.chartFallback.style.display = 'none';
+        });
+    } catch (err) {
+        console.error('Ошибка инициализации TradingView:', err);
+        ui.chartFallback.style.display = 'flex';
+    }
+}
+
+// Вызываем инициализацию
+initTradingView();
+
+/* ================= СМЕНА ГРАФИКА ================= */
+window.changeChart = function(ticker) {
+    if (!tvWidget) return;
+    try {
+        tvWidget.setSymbol(`MOEX:${ticker}`, "1", () => {
+            console.log(`График изменён на ${ticker}`);
+        });
+    } catch (err) {
+        console.error('Ошибка смены символа:', err);
+    }
+};
+
+window.resetChartToDefault = function() {
+    if (!tvWidget) return;
+    tvWidget.setSymbol("MOEX:IMOEX", "1", () => {
+        console.log('График сброшен на дефолт (IMOEX)');
+    });
+};
 
 /* ================= ФУНКЦИИ ВРЕМЕНИ ================= */
 function updateClock() {
@@ -184,6 +245,11 @@ function render() {
             const el = document.createElement('div');
             el.className = 'asset-row';
             el.setAttribute('role', 'listitem');
+            // Добавляем клик для смены графика (если не cash)
+            if (asset.type !== 'cash') {
+                el.onclick = () => changeChart(asset.ticker);
+                el.style.cursor = 'pointer'; // Курсор для кликабельности
+            }
             el.innerHTML = `
                 <div class="asset-left">
                     <div class="asset-name">${asset.name}</div>
@@ -199,8 +265,8 @@ function render() {
                     </div>
                     ${changeHTML}
                     <div class="row-actions">
-                        <button class="btn-icon" onclick="editAsset(${index})" aria-label="Редактировать ${asset.ticker}">✎</button>
-                        <button class="btn-icon del" onclick="deleteAsset(${index})" aria-label="Удалить ${asset.ticker}">✕</button>
+                        <button class="btn-icon" onclick="editAsset(${index}); event.stopPropagation();" aria-label="Редактировать ${asset.ticker}">✎</button>
+                        <button class="btn-icon del" onclick="deleteAsset(${index}); event.stopPropagation();" aria-label="Удалить ${asset.ticker}">✕</button>
                     </div>
                 </div>
             `;
@@ -236,6 +302,11 @@ function render() {
                 const el = document.createElement('div');
                 el.className = 'asset-row';
                 el.setAttribute('role', 'listitem');
+                // Добавляем клик для смены графика (если не cash)
+                if (asset.type !== 'cash') {
+                    el.onclick = () => changeChart(asset.ticker);
+                    el.style.cursor = 'pointer';
+                }
                 el.innerHTML = `
                     <div class="asset-left">
                         <div class="asset-name">${asset.name}</div>
@@ -251,8 +322,8 @@ function render() {
                         </div>
                         ${changeHTML}
                         <div class="row-actions">
-                            <button class="btn-icon" onclick="editAsset(${asset.index})" aria-label="Редактировать ${asset.ticker}">✎</button>
-                            <button class="btn-icon del" onclick="deleteAsset(${asset.index})" aria-label="Удалить ${asset.ticker}">✕</button>
+                            <button class="btn-icon" onclick="editAsset(${asset.index}); event.stopPropagation();" aria-label="Редактировать ${asset.ticker}">✎</button>
+                            <button class="btn-icon del" onclick="deleteAsset(${asset.index}); event.stopPropagation();" aria-label="Удалить ${asset.ticker}">✕</button>
                         </div>
                     </div>
                 `;
